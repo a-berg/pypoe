@@ -75,6 +75,7 @@ class ColorChances:
         if item.n_req == 1:
             on_chance = self._on_color_chance_1req(hi_attr)
             off_chance = (1 - on_chance) / 2
+            # not very elegant but it werks
             for (attr, _), p in zip(sorted_attrs, [off_chance, off_chance, on_chance]):
                 self._chances[attr] = p
         elif item.n_req == 2:
@@ -114,14 +115,16 @@ class ChromaticCalculator:
             # the 3 possible colors and the "null" color as 0, to get combinations like 1R
             "rgb0",
             # use combinatorics to get all possible combinations of 3 elements
+            # this will give tuples like ('r', 'r', '0') => 2R
             lambda x: combinations_with_replacement(x, r=3),
-            # use counter to reduce combinations to counts, e.g. 2R1G
+            # use counter to reduce combinations to counts
+            # e.g. ('r', 'r', 'g') => Count(r=2, g=1)
             map(Counter),
-            # delete 0s from the counters entries (keys)
+            # delete 0s from the counters keys
             map(curry(delfn, key="0")),
             # filter out the 1R1G1B combination, which doesn't exist for bench crafts (man, I wish)
             filter(lambda x: not all(x[i] == 1 for i in "rgb")),
-            # transform to dictionaries
+            # transform to dictionaries (TODO: rework the RGb class to not need this)
             map(dict),
             # custom class to ease formatting and getting the colors
             map(RGB),
