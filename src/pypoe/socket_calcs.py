@@ -132,16 +132,6 @@ class ChromaticCalculator:
             list,
         )
 
-        # self._chromatic_options_modifiers = {
-        #     "chromatic": [0, 0, 0],
-        #     **dict(
-        #         zip(
-        #             map(lambda x: "bench " + str(x), all_combinations),
-        #             map(list, all_combinations),
-        #         )
-        #     ),
-        # }
-
     def get_base_chances_multinom(self):
         """The idea is to use a multidimensional Multinomial distribution, and use its probability mass function to
         get the exact chances of each result."""
