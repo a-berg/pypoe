@@ -1,0 +1,28 @@
+[project]
+name = "pypoe"
+version = "0.1.0"
+description = "Python utility CLI/library for Path of Exile."
+authors = [
+    {name = "Adrian Berges", email = "aberges@outlook.com"},
+]
+dependencies = [
+    "typer[all]>=0.9.0",
+    "scipy>=1.12.0",
+    "toolz>=0.12.1",
+]
+requires-python = ">=3.12"
+readme = "README.md"
+license = {text = "MIT"}
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+
+[tool.pdm]
+distribution = true
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "ptpython>=3.0.25",
+]
