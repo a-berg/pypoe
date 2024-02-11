@@ -26,4 +26,5 @@ distribution = true
 [tool.pdm.dev-dependencies]
 dev = [
     "ptpython>=3.0.25",
+    "pytest>=8.0.0",
 ]
