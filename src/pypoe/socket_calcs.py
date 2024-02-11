@@ -10,7 +10,7 @@ from itertools import repeat, combinations_with_replacement
 from collections import Counter
 from dataclasses import dataclass
 from toolz import pipe, curry
-from toolz.curried import map, filter, get
+from toolz.curried import map, filter, get, sorted
 
 import numpy as np
 from scipy.stats import multinomial, geom
@@ -53,10 +53,35 @@ class Item:
             len,
         )
 
+    def __repr__(self):
+        _attrs = pipe(
+            self,
+            filter(lambda x: x > 0),
+            map(str),
+            lambda x: zip(x, ("Str", "Dex", "Int")),
+            map(lambda x: " ".join(x)),
+            tuple,
+        )
+        return f"Requires {', '.join(_attrs)}, has {self.n_sockets}/{self.max_sockets} sockets"
+
+
+@dataclass
+class ChromaticResult:
+    name: str
+    success_probability_single_trial: float
+    cost_per_try: int
+    percentiles: dict
+
+    def cost(self, at_percentile: str = "66"):
+        return self.percentiles[at_percentile] * self.cost_per_try
+
+    def __after_init__(self):
+        for pct, p_val in self.percentiles.items():
+            setattr(self, f"cost{pct}", p_val * self.cost_per_try)
+
 
 class ColorChances:
-    """This is the 'hardest' part because PoE has lots of attribute permutations and
-    3 special cases for them.
+    """
     The class will compute the on-color and off-color chances for each attribute.
     """
 
@@ -132,7 +157,7 @@ class ChromaticCalculator:
             list,
         )
 
-    def get_base_chances_multinom(self):
+    def compute_chances(self, sort_by_percentile: str = "66"):
         """The idea is to use a multidimensional Multinomial distribution, and use its probability mass function to
         get the exact chances of each result."""
         # so basically I need to iterate over all crafting options.
@@ -140,14 +165,37 @@ class ChromaticCalculator:
         results = []
         for bench_opt in self._chromatic_options_modifiers:
             as_np = np.array(list(bench_opt))
+            # multinomial distribution models the result of n trials with 3 possible outcomes.
+            # assuming that each socket is rolled independently of the rest, this means the number
+            # of trials is equal to the number of sockets. This is modified by "fixed" colors
+            # (bench crafting).
             chance = multinomial.pmf(
                 self._desired_colors - as_np,
                 n=self._available_sockets - as_np.sum(),
                 p=self._base_chances,
             )
+            # remember I defined a dictionary with the costs given a "generic" bench option?
             cost = CHROMATIC_COSTS[tuple(sorted(bench_opt))]
-            percentiles = geom.ppf([0.66, 0.80, 0.9, 0.95, 0.99], chance)
-            results.append([str(bench_opt), chance, cost, percentiles])
+            # once we have the chance of a particular outcome in the multinomial distribution,
+            # then the process of repeating this trial again and again until desired outcome
+            # follows a geometric distribution. We can use its probability percentile function
+            # to get the number of trials expected until you get the desired result with certain "surety".
+            percentiles = geom.ppf([0.5, 0.66, 0.80, 0.9, 0.95, 0.99], chance)
+            results.append(
+                ChromaticResult(
+                    str(bench_opt),
+                    chance,
+                    cost,
+                    dict(zip(("50", "66", "80", "90", "99"), percentiles)),
+                )
+            )
 
-        # self.results = results
-        return results
+        return pipe(
+            results,
+            # 0% chance of success is uninteresting, filter them out
+            filter(lambda x: x.success_probability_single_trial > 0),
+            # sort by cost (least cost is better)
+            sorted(key=lambda x: x.cost(sort_by_percentile)),
+            # materialize
+            list,
+        )
